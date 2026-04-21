@@ -1,0 +1,15 @@
+[project]
+name = "multiple-tmaze"
+version = "0.1.0"
+description = "LIF+STDP SNN agent on Multiple-TMaze with recursive lifelong learning"
+requires-python = ">=3.11"
+dependencies = [
+    "matplotlib>=3.10.8",
+    "numpy>=2.4.4",
+]
+
+[project.scripts]
+train-snn = "main:main"
+
+[tool.uv]
+package = false

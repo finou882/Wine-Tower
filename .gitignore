@@ -1,0 +1,26 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Large binary / data files
+NUL.npz
+*.npz
+
+# Experiment plots (keep only key figures)
+results_wt.png
+results_wt2.png
+results_wt3.png
+results_wt4.png
+results_wt_p3.png
+results_wt_p3b.png
+
+# OS
+.DS_Store
+Thumbs.db
