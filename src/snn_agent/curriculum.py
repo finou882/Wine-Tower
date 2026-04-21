@@ -171,4 +171,4 @@ class GoalCurriculum:
             return (f"Phase2(look-ahead gap={gap}, "
                     f"ep {self._episode}/{self.phase2_end})")
         else:
-            return f"Phase3(all-10-goals recall, ep {self._episode}/{self.total})"
+            return f"Phase3(all-10-goals recall, ep {self._episode})"
