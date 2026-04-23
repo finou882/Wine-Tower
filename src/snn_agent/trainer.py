@@ -70,7 +70,9 @@ class LifelongTrainer:
             "episode": [],
             "success": [],
             "reward": [],
-            "n_dead_hidden": [],
+            "n_dead_hidden1": [],
+            "n_dead_hidden2": [],
+            "n_dead_hidden3": [],
             "n_dead_output": [],
             "phase": [],
         }
@@ -130,29 +132,37 @@ class LifelongTrainer:
         #   Even 0.4% success rate gives enough LTP signal to consolidate
         #   goal-anchor neurons (each correct junction = +0.1 signal).
         # Phase 3: full reward including -1.0 penalty.
-        #   Novel goals → frequent failure → LTD dominates → cascade.
+        #   Novel goals → frequent failure → LTD dominate → cascade.
         if learn:
             phase = self.curriculum.phase
-            self.agent.reset_episode()
-            for step_obs, step_reward in trajectory:
-                if step_reward > 0:
-                    effective = step_reward * 20.0   # LTP強め
-                else:
-                    effective = step_reward * 2.0    # LTD弱め（崩壊防止）
-                self.agent.act(step_obs, reward=effective, learn=True)
+            # Success-Driven Learning (Idea 1 revised):
+            # Apply STDP if the episode was successful or a "near-miss" (total_reward > 0.5)
+            # or if we are still in early phases (where exploration noise is tolerable).
+            if phase < 3 or total_reward > 0.5:
+                self.agent.reset_episode()
+                for step_obs, step_reward in trajectory:
+                    if step_reward > 0:
+                        effective = step_reward * 20.0   # LTP強め
+                    else:
+                        effective = step_reward * 2.0    # LTD弱め（崩壊防止）
+                    self.agent.act(step_obs, reward=effective, learn=True)
 
         return total_reward, trajectory
 
     # ------------------------------------------------------------------
     def _replay_pass(self) -> None:
-        """Re-run a sample of stored (cue, target) pairs without logging."""
+        """Re-run a sample of stored (cue, target) pairs without logging.
+        Uses Prioritized Experience Replay: replays the top-K highest reward episodes.
+        """
         if not self._replay_buf:
             return
         n = min(len(self._replay_buf), 5)
-        indices = np.random.default_rng().choice(len(self._replay_buf),
-                                                  size=n, replace=False)
-        for idx in indices:
-            cues, target, _, _r = self._replay_buf[int(idx)]
+        # Idea 2: Prioritized Experience Replay (Success-driven sleep)
+        # Sort the buffer by reward (descending) and take the top 'n' episodes
+        sorted_buf = sorted(self._replay_buf, key=lambda x: x[3], reverse=True)
+        top_experiences = sorted_buf[:n]
+        
+        for cues, target, _, _r in top_experiences:
             self._run_episode(cues, target=target, learn=True)
 
     # ------------------------------------------------------------------
@@ -166,7 +176,8 @@ class LifelongTrainer:
         hidden neurons via positive W_rec connections from live neighbours.
         Only runs when dead neurons are present.
         """
-        if not self.agent.hidden.dead_mask.any():
+        has_dead = any(h.dead_mask.any() for h in self.agent.hiddens)
+        if not has_dead:
             return
         if not self._replay_buf:
             return
@@ -216,12 +227,9 @@ class LifelongTrainer:
             self.env.n_active_junctions = n_junc
 
             # Phase-aware WTA-k:
-            # Phase 1/2 – large k (half of hidden) so most neurons survive
-            #   long enough for STDP to specialise on the anchor goal.
-            # Phase 3  – moderate k (12.5% of hidden) so Wine-Tower recovery
-            #   can compete with WTA-induced death and demonstrate revival.
-            n_hidden = self.agent.n_hidden
-            self.agent.hidden.k = n_hidden // 2 if phase <= 2 else max(1, n_hidden // 8)
+            # (Override removed to allow fixed WTA-k from CLI, e.g., --wta-k 2)
+            # n_hidden = self.agent.n_hidden
+            # self.agent.hidden.k = n_hidden // 2 if phase <= 2 else max(1, n_hidden // 8)
 
             # Phase-aware homeostatic kick:
             # Phase 1/2 – gently depolarise dead neurons so STDP has time to
@@ -229,10 +237,12 @@ class LifelongTrainer:
             # Phase 3  – mild kick to let Wine-Tower have a chance to revive
             #   dead neurons via neighbour-voltage leaking + STDP.
             if phase <= 2:
-                self.agent.hidden.homeostatic_kick(strength=0.4)
+                for h in self.agent.hiddens:
+                    h.homeostatic_kick(strength=0.4)
                 self.agent.output.homeostatic_kick(strength=0.2)
             else:
-                self.agent.hidden.homeostatic_kick(strength=0.1)
+                for h in self.agent.hiddens:
+                    h.homeostatic_kick(strength=0.1)
 
             eps = self._epsilon(ep, total_episodes)
             reward, traj = self._run_episode(cue_goals, target=target, learn=True, epsilon=eps)
@@ -247,7 +257,9 @@ class LifelongTrainer:
             self.history["episode"].append(ep)
             self.history["success"].append(int(success))
             self.history["reward"].append(reward)
-            self.history["n_dead_hidden"].append(self.agent.n_dead_hidden)
+            self.history["n_dead_hidden1"].append(self.agent.n_dead_hidden1)
+            self.history["n_dead_hidden2"].append(self.agent.n_dead_hidden2)
+            self.history["n_dead_hidden3"].append(self.agent.n_dead_hidden3)
             self.history["n_dead_output"].append(self.agent.n_dead_output)
             self.history["phase"].append(self.curriculum.phase)
 
@@ -265,13 +277,15 @@ class LifelongTrainer:
                 window = 50
                 recent = self.history["success"][max(0, ep - window):]
                 acc = np.mean(recent) * 100
-                nd_h = self.agent.n_dead_hidden
+                nd_h1 = self.agent.n_dead_hidden1
+                nd_h2 = self.agent.n_dead_hidden2
+                nd_h3 = self.agent.n_dead_hidden3
                 nd_o = self.agent.n_dead_output
                 phase_desc = self.curriculum.phase_description()
                 print(
                     f"[Ep {ep+1:5d}/{total_episodes}] "
                     f"acc(last{window})={acc:5.1f}%  "
-                    f"dead_hidden={nd_h:3d}  dead_out={nd_o}  "
+                    f"dead_h123=[{nd_h1:3d}, {nd_h2:3d}, {nd_h3:3d}]  dead_out={nd_o}  "
                     f"| {phase_desc}"
                 )
 

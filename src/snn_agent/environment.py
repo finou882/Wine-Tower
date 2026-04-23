@@ -16,7 +16,7 @@ Action:  0=left, 1=right, 2=forward (straight)
 import numpy as np
 from typing import List, Optional, Tuple
 
-N_GOALS = 10
+N_GOALS = 5
 N_JUNCTIONS = 5          # depth of T-maze tree (2^5 = 32 leaves)
 CUE_STEPS = 5            # timesteps the cue is shown before navigation starts
 

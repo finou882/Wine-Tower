@@ -15,4 +15,4 @@ foreach ($seed in $seeds) {
 }
 
 Write-Host "=== All seeds done! ===" -ForegroundColor Yellow
-uv run python compare_winetower.py --multi-seed --out comparison_multiseed.png
+uv run python compare_winetower.py --multi-seed --out comparison2.png

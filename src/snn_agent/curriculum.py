@@ -27,7 +27,7 @@ from collections import deque
 from typing import Deque, List, Optional, Tuple
 
 
-N_GOALS = 10
+N_GOALS = 5
 
 
 class GoalCurriculum:
@@ -113,43 +113,42 @@ class GoalCurriculum:
     def next_episode_goals(self) -> Tuple[List[int], int]:
         """
         Decide which goals to show as cues and which single target to pursue.
+        Deterministic rule: Target = Hint + 1.
+        The pool of available hints expands by phase.
 
         Returns
         -------
-        cue_goals  : list[int]   goal IDs the agent sees as hints this episode
-        target     : int         goal ID the agent must actually reach
+        cue_goals  : list[int]   a single goal ID shown as a hint
+        target     : int         the successor goal ID (hint + 1)
         """
         if self.fixed_goals is not None:
-            target = int(self.rng.choice(self.fixed_goals))
+            # For fixed goals, we just pick one pair that satisfies the rule if possible,
+            # or just pick from the fixed set if provided as hint/target pairs.
+            # Here we assume fixed_goals is a list of candidate hints.
+            hint = int(self.rng.choice(self.fixed_goals))
+            target = (hint + 1) % N_GOALS
             self._episode += 1
-            return list(self.fixed_goals), target
+            return [hint], target
 
         phase = self._current_phase()
 
+        # Define the active pool of hints based on the phase
         if phase == 1:
-            cues = self._sample_cues()
-            self._history.append(cues)
-            # If anchor_goal is set, always train toward it in Phase 1/2
-            # so WTA specialises neurons for that goal before Phase 3.
-            target = self.anchor_goal if self.anchor_goal is not None else int(self.rng.choice(cues))
-
+            pool_size = max(1, N_GOALS // 3)
         elif phase == 2:
-            gap = self._current_gap()
-            cues = self._sample_cues()
-            self._history.append(cues)
-            if self.anchor_goal is not None:
-                target = self.anchor_goal
-            elif len(self._history) > gap:
-                old_cues = list(self._history)[-gap - 1]
-                target = int(self.rng.choice(old_cues))
-            else:
-                target = int(self.rng.choice(cues))
+            pool_size = max(1, (2 * N_GOALS) // 3)
+        else:
+            pool_size = N_GOALS - 1 # Ensure hint+1 doesn't overflow N_GOALS if needed
 
-        else:   # phase 3 – all 10 goals active
-            cues = list(range(N_GOALS))
-            self._history.append(cues)
-            target = int(self.rng.integers(N_GOALS))
+        active_hints = list(range(pool_size))
+        hint = int(self.rng.choice(active_hints))
+        
+        # Deterministic rule: Target is always Hint + 1
+        target = (hint + 1) % N_GOALS
+        
+        cues = [hint]
 
+        self._history.append(cues)
         self._episode += 1
         return cues, target
 

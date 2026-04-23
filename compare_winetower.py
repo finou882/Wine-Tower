@@ -40,7 +40,12 @@ def stack_seeds(prefix: str, seeds, key: str) -> np.ndarray:
     for s in seeds:
         path = f"results/{prefix}_seed{s}.npz"
         d = load(path)
-        arrays.append(d[key].astype(float))
+        if key == "n_dead_hidden":
+            # Sum up all 3 layers
+            val = (d["n_dead_hidden1"] + d["n_dead_hidden2"] + d["n_dead_hidden3"]).astype(float)
+        else:
+            val = d[key].astype(float)
+        arrays.append(val)
     min_len = min(len(a) for a in arrays)
     return np.stack([a[:min_len] for a in arrays])   # (n_seeds, T)
 
@@ -57,9 +62,13 @@ def plot_single(args):
     gs  = gridspec.GridSpec(2, 2, hspace=0.45, wspace=0.35)
 
     ax1 = fig.add_subplot(gs[0, :])
-    ax1.plot(ep_no_wt, no_wt["n_dead_hidden"],
+    # Sum up dead neurons from all 3 hidden layers
+    def get_total_dead(data):
+        return (data["n_dead_hidden1"] + data["n_dead_hidden2"] + data["n_dead_hidden3"])
+
+    ax1.plot(ep_no_wt, get_total_dead(no_wt),
              color=COLOR_NOWT, linewidth=1.2, label="No Wine-Tower (control, seed42)")
-    ax1.plot(ep_wt, wt["n_dead_hidden"],
+    ax1.plot(ep_wt, get_total_dead(wt),
              color=COLOR_WT,   linewidth=1.8, label="Wine-Tower seed42", zorder=3)
 
     # Extra WT runs (other seeds)
@@ -68,21 +77,21 @@ def plot_single(args):
         try:
             ex = load(path)
             label = path.split("/")[-1].replace(".npz", "")
-            ax1.plot(ex["episode"], ex["n_dead_hidden"],
+            ax1.plot(ex["episode"], get_total_dead(ex),
                      color=extra_colors[i % len(extra_colors)],
                      linewidth=1.2, linestyle="--", alpha=0.8,
                      label=f"Wine-Tower {label}")
-        except FileNotFoundError:
-            print(f"Warning: {path} not found, skipping.")
+        except (FileNotFoundError, KeyError):
+            print(f"Warning: {path} not found or missing keys, skipping.")
 
-    ax1.set_ylabel("# Dead hidden neurons")
-    ax1.set_xlabel("Episode (Phase 3)")
+    ax1.set_ylabel("Total dead hidden neurons (H1+H2+H3)")
+    ax1.set_xlabel("Episode")
     ax1.set_title("Dead Neuron Count: Wine-Tower vs Control", fontsize=11)
     ax1.legend(fontsize=9)
     ax1.grid(True, alpha=0.3)
 
-    final_wt   = int(wt["n_dead_hidden"][-1])
-    final_nowt = int(no_wt["n_dead_hidden"][-1])
+    final_wt   = int(get_total_dead(wt)[-1])
+    final_nowt = int(get_total_dead(no_wt)[-1])
     ax1.annotate(f"end={final_wt}",
                  xy=(ep_wt[-1], final_wt),
                  xytext=(-60, 8), textcoords="offset points",

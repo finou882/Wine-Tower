@@ -164,7 +164,9 @@ def plot_results(history, save_path):
     episodes = history["episode"]
     successes = history["success"]
     rewards = np.array(history["reward"])
-    n_dead_h = history["n_dead_hidden"]
+    n_dead_h1 = history["n_dead_hidden1"]
+    n_dead_h2 = history["n_dead_hidden2"]
+    n_dead_h3 = history["n_dead_hidden3"]
     phases = history["phase"]
 
     # Rolling success rate
@@ -194,7 +196,9 @@ def plot_results(history, save_path):
 
     # --- Panel 2: dead neurons ---
     ax = axes[1]
-    ax.plot(episodes, n_dead_h, label="Dead hidden neurons", color="tomato")
+    ax.plot(episodes, n_dead_h1, label="Dead H1", color="tomato", alpha=0.8)
+    ax.plot(episodes, n_dead_h2, label="Dead H2", color="darkred", alpha=0.8)
+    ax.plot(episodes, n_dead_h3, label="Dead H3", color="crimson", alpha=0.8)
     ax.plot(episodes, history["n_dead_output"],
             label="Dead output neurons", color="orange", linestyle="--")
     ax.set_ylabel("# Dead neurons")
@@ -399,7 +403,7 @@ def main():
     recent = history["success"][-100:]
     final_acc = np.mean(recent) * 100
     print(f"\nFinal accuracy (last 100 episodes): {final_acc:.1f}%")
-    print(f"Dead hidden neurons at end: {agent.n_dead_hidden}/{args.hidden}")
+    print(f"Dead hidden neurons at end: H1={agent.n_dead_hidden1}/{args.hidden}, H2={agent.n_dead_hidden2}/{args.hidden}, H3={agent.n_dead_hidden3}/{args.hidden}")
     print(f"Dead output neurons at end: {agent.n_dead_output}/{env.act_dim}")
 
     if args.save_model:
@@ -413,7 +417,9 @@ def main():
             episode=np.array(history["episode"]),
             success=np.array(history["success"]),
             reward=np.array(history["reward"]),
-            n_dead_hidden=np.array(history["n_dead_hidden"]),
+            n_dead_hidden1=np.array(history["n_dead_hidden1"]),
+            n_dead_hidden2=np.array(history["n_dead_hidden2"]),
+            n_dead_hidden3=np.array(history["n_dead_hidden3"]),
             n_dead_output=np.array(history["n_dead_output"]),
             phase=np.array(history["phase"]),
         )
