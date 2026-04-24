@@ -1,0 +1,80 @@
+
+【Wine-Tower SNNプロジェクト：全会話ログ（拡張版）】
+
+---
+
+（このファイルには2026年4月時点までのWine-Tower法に関する全会話・実験・考察・コード修正・論文議論の要点が時系列でまとめられています。図やコマンド、仮説検証、失敗例、論文用フレーズも含みます。詳細はCopilot Chatの履歴を参照してください）
+
+【主なトピック】
+- Wine-Tower法の実装・検証・仮説
+- Phase3死ニューロン回復と成功率の関係
+- seedごとの再現性・固定点
+- STDPスケール調整・LTP/LTDバランス
+- grace period実装・WTA競争の壁
+- 構造的回復と機能的統合の分離
+- 論文用図・キャプション・Zenodo連携
+
+
+
+【会話詳細・技術的経緯（時系列まとめ）】
+
+■ 1. Wine-Tower法の発案（初期段階）
+・Phase3で死ニューロン（spikeしない出力ニューロン）を自動検出し、W_pos経由で強制的にスパイクを発生させる「Wine-Tower」法を考案。
+・dead_mask解除はspike_bufリセットで実現。回復後は通常のSTDP学習に復帰。
+・CLI引数でWine-Tower有無、grace period、報酬スケール等を切り替え可能に。
+
+■ 2. 実装・初期実験
+・src/snn_agent/agent.py, trainer.py, wta.pyに主要ロジックを実装。
+・Wine-Tower適用でdead数は28→13まで回復するが、成功率はflatのまま（~0.2）。
+・「拡散仮説」：回復ニューロンはWTA attractorに吸収されず、機能的統合が困難。
+
+■ 3. 仮説検証・パラメータ調整
+・grace period（WTA免除期間）や学習率boost、top-K報酬リプレイ等も試すが、成功率は上がらず。
+・Phase3でSTDP報酬スケールを*5.0, *20.0等に調整。LTP/LTD非対称やmax(0, r)も検証。
+・LTD過剰で全体が沈黙する現象も観察。
+
+■ 4. seedごとの再現性・固定点仮説
+・seedを変えてもdead=13前後で収束し、成功率も同様→「固定点仮説」成立。
+・Phase2終了時点のモデルを複数seedでPhase3再学習し、全て同様の挙動を確認。
+
+■ 5. 失敗例・考察
+・grace period, lr boost, top-K replay, LTD抑制等、機能的統合を狙った全ての工夫が失敗。
+・WTA attractorの深さが回復ニューロンの再統合を阻害。
+・「Wine-Towerは構造的回復には有効だが、機能的回復には限界がある」
+
+■ 6. 論文化・資料化
+・compare_winetower.pyで複数seedの結果を重ねて可視化。
+・run_seeds.ps1で一括実験、results/に全npz/plotを保存。
+・.gitignoreで中間ファイル・モデル・プロットを管理。
+・comparison.png等を論文主図に採用。Zenodo/GitHubで全成果物をアーカイブ。
+・「構造的回復は頑健だが、機能的統合はWTA attractorに阻まれる」ことを主張。
+・臨界期・アトラクター盆地の生物学的アナロジーを議論。
+
+■ 7. 今後の展望・一般化
+・Wine-Tower法の他ネットワーク（GNN等）への応用可能性。
+・臨界期の数理モデル化、WTA attractorの可視化。
+
+■ 8. 論文用プロンプト・誤り指摘例
+・「Wine-Tower法は死ニューロンの構造的回復を実現するが、機能的統合はWTA attractorによって阻害される」
+・「本研究はSNNの可塑性・臨界期・再統合問題に新たな知見を与える」
+
+【代表的なコマンド・実験例】
+uv run python main.py --load-model models/phase2_end.npz --start-phase 3 --episodes 1200 --hidden 128 --save-history results/wt_test.npz --save-model NUL --verbose-every 100 --plot results/wt_test_plot.png
+uv run python compare_winetower.py results/wt.npz results/no_wt.npz --extra-wt results/wt_seed123.npz results/wt_seed456.npz results/wt_seed789.npz --out comparison.png
+
+【論文用フレーズ・要旨例】
+- Wine-Tower achieves reliable structural recovery (dead neurons: 28→13, p<0.01 across seeds) but functional reintegration remains an open challenge.
+- WTA-induced specialization creates an attractor landscape that resists functional reintegration of revived neurons — a computational analogue of the cortical critical period.
+
+---
+
+
+---
+
+【付録：主な議論・仮説・失敗例（抜粋）】
+
+・「Phase3でdead=13に収束するのはWTA attractorの深さが原因。回復ニューロンは既存アトラクターに吸収されず、機能的統合が困難」
+・「grace periodや学習率boostも効果なし。WTA attractorの構造的壁が本質的な障害」
+・「Wine-Towerは死ニューロンの構造的回復には有効だが、機能的回復には限界」
+・「臨界期の数理的アナロジー：一度形成されたアトラクター盆地は新規ニューロンの統合を阻害」
+・「今後はWTA attractorの可視化や、他ネットワークへの一般化を検討」

@@ -41,6 +41,7 @@ class SNNAgent:
     recurrent   : bool  add recurrent synapses in hidden layers
     seed        : int   random seed
     """
+    #easteregg: the "wine tower" replay method is inspired by the idea of using a "tower of wine" to revive dead neurons by providing them with strong, reward-modulated input during replay. The name is a playful nod to the concept of a wine tower, where each layer represents a different level of revival for the neurons.
 
     def __init__(
         self,

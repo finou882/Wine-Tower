@@ -103,19 +103,33 @@ def plot_single(args):
                  color=COLOR_NOWT, fontsize=8,
                  arrowprops=dict(arrowstyle="->", color=COLOR_NOWT))
 
-    ax2 = fig.add_subplot(gs[1, 0])
+    ax2 = fig.add_subplot(gs[1, :])
+    
+    # Plot No-WT success rate
+    roll_no = rolling(no_wt["success"], W) * 100
+    ax2.plot(range(W - 1, len(ep_no_wt)), roll_no, color=COLOR_NOWT, linewidth=1.2, label="No Wine-Tower (control, seed42)")
+    
+    # Plot WT success rate (seed 42)
     roll_wt = rolling(wt["success"], W) * 100
-    ax2.plot(range(W - 1, len(ep_wt)), roll_wt, color=COLOR_WT, linewidth=1.2)
-    ax2.set_title("Success rate – Wine-Tower", fontsize=9)
+    ax2.plot(range(W - 1, len(ep_wt)), roll_wt, color=COLOR_WT, linewidth=1.8, label="Wine-Tower seed42")
+
+    # Plot extra WT runs success rate
+    for i, path in enumerate(args.extra_wt or []):
+        try:
+            ex = load(path)
+            label = path.split("/")[-1].replace(".npz", "")
+            roll_ex = rolling(ex["success"], W) * 100
+            ax2.plot(range(W - 1, len(ex["episode"])), roll_ex,
+                     color=extra_colors[i % len(extra_colors)],
+                     linewidth=1.2, linestyle="--", alpha=0.8,
+                     label=f"Wine-Tower {label}")
+        except (FileNotFoundError, KeyError):
+            pass
+
+    ax2.set_title("Success rate: Wine-Tower vs Control", fontsize=11)
     ax2.set_ylabel(f"Rolling acc ({W}-ep) %")
     ax2.set_xlabel("Episode"); ax2.set_ylim(0, 50); ax2.grid(True, alpha=0.3)
-
-    ax3 = fig.add_subplot(gs[1, 1])
-    roll_no = rolling(no_wt["success"], W) * 100
-    ax3.plot(range(W - 1, len(ep_no_wt)), roll_no, color=COLOR_NOWT, linewidth=1.2)
-    ax3.set_title("Success rate – No Wine-Tower (control)", fontsize=9)
-    ax3.set_ylabel(f"Rolling acc ({W}-ep) %")
-    ax3.set_xlabel("Episode"); ax3.set_ylim(0, 50); ax3.grid(True, alpha=0.3)
+    ax2.legend(fontsize=9)
 
     plt.suptitle(
         "Wine-Tower Recovery in WTA-SNN  ·  Phase 3 (all-10-goals recall)",
