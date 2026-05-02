@@ -6,6 +6,8 @@ dist/
 wheels/
 *.egg-info
 articles/
+articles/out/
+articles - コピー/
 
 
 # Virtual environments
