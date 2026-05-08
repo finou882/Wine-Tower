@@ -1,4 +1,5 @@
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19969376.svg)](https://doi.org/10.5281/zenodo.19969376)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/finou882/wine-tower/blob/main/demo.ipynb)
 
 > **English README is [here](README.md).**
 
