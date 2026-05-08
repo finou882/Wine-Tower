@@ -109,7 +109,20 @@ uv run python main.py --load-model models/phase2.npz --weight-plot articles/imag
 
 ### Figure 2 — Spike raster plot (Before / After Wine-Tower)
 ```bash
-# requires models/no_wt_deep3_model.npz and models/wt_deep3_model.npz
+# Step 1: train Phase 1/2 checkpoint (shared)
+uv run python main.py --episodes 1500 --max-phase 2 --seed 42 --save-model models/phase2_raster.npz
+
+# Step 2a: Phase 3 WITHOUT Wine-Tower  →  "Before" model
+uv run python main.py --episodes 900 --seed 42 \
+    --load-model models/phase2_raster.npz --start-phase 3 \
+    --no-wine-tower --save-model models/no_wt_deep3_model.npz
+
+# Step 2b: Phase 3 WITH Wine-Tower  →  "After" model
+uv run python main.py --episodes 900 --seed 42 \
+    --load-model models/phase2_raster.npz --start-phase 3 \
+    --save-model models/wt_deep3_model.npz
+
+# Step 3: generate raster plot
 uv run python generate_raster_comparison.py
 # output: articles/images/fig_raster.png
 ```
