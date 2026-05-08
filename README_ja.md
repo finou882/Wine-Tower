@@ -109,7 +109,20 @@ uv run python main.py --load-model models/phase2.npz --weight-plot articles/imag
 
 ### Figure 2 — スパイクラスタープロット（Wine-Tower適用前後）
 ```bash
-# models/no_wt_deep3_model.npz と models/wt_deep3_model.npz が必要
+# Step 1: Phase 1/2 チェックポイントを学習（共通）
+uv run python main.py --episodes 1500 --max-phase 2 --seed 42 --save-model models/phase2_raster.npz
+
+# Step 2a: Phase 3（Wine-Tower無し）→ "Before" モデル
+uv run python main.py --episodes 900 --seed 42 `
+    --load-model models/phase2_raster.npz --start-phase 3 `
+    --no-wine-tower --save-model models/no_wt_deep3_model.npz
+
+# Step 2b: Phase 3（Wine-Tower有り）→ "After" モデル
+uv run python main.py --episodes 900 --seed 42 `
+    --load-model models/phase2_raster.npz --start-phase 3 `
+    --save-model models/wt_deep3_model.npz
+
+# Step 3: ラスタープロット生成
 uv run python generate_raster_comparison.py
 # 出力: articles/images/fig_raster.png
 ```
