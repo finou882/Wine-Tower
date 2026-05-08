@@ -115,6 +115,8 @@ def parse_args() -> argparse.Namespace:
                         help="Stop training when curriculum advances past this phase.")
     parser.add_argument("--no-wine-tower", action="store_true",
                         help="Disable Wine-Tower recovery (for ablation/control experiments).")
+    parser.add_argument("--no-boost", action="store_true",
+                        help="Disable STDP reward amplification (use raw reward, no x20/x2 scaling).")
     parser.add_argument("--save-history", type=str, default=None,
                         metavar="FILE.npz",
                         help="Save training history (dead neurons, acc, etc.) to this file.")
@@ -383,6 +385,7 @@ def main():
         replay_interval=args.replay_interval,
         verbose_every=args.verbose_every,
         wine_tower=not args.no_wine_tower,
+        stdp_boost=not args.no_boost,
     )
 
     # Load model if requested (before training)

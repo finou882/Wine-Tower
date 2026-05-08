@@ -49,6 +49,7 @@ class LifelongTrainer:
         epsilon_start: float = 0.3,
         epsilon_end: float = 0.05,
         wine_tower: bool = True,
+        stdp_boost: bool = True,
     ):
         self.agent = agent
         self.env = env
@@ -64,6 +65,7 @@ class LifelongTrainer:
         self.epsilon_end = epsilon_end
         self._wine_tower_enabled = wine_tower
         self._wine_tower_interval = 20   # run Wine-Tower pass every N episodes
+        self._stdp_boost = stdp_boost
 
         # Statistics
         self.history: Dict[str, List] = {
@@ -141,10 +143,13 @@ class LifelongTrainer:
             if phase < 3 or total_reward > 0.5:
                 self.agent.reset_episode()
                 for step_obs, step_reward in trajectory:
-                    if step_reward > 0:
-                        effective = step_reward * 20.0   # LTP強め
+                    if self._stdp_boost:
+                        if step_reward > 0:
+                            effective = step_reward * 20.0   # LTP強め
+                        else:
+                            effective = step_reward * 2.0    # LTD弱め（崩壊防止）
                     else:
-                        effective = step_reward * 2.0    # LTD弱め（崩壊防止）
+                        effective = step_reward  # no amplification
                     self.agent.act(step_obs, reward=effective, learn=True)
 
         return total_reward, trajectory
