@@ -28,7 +28,11 @@ uv  (recommended)
 
 Install dependencies:
 ```bash
+# with uv (recommended)
 uv sync
+
+# or with pip
+pip install -r requirements.txt
 ```
 
 ---

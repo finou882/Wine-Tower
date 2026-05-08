@@ -28,7 +28,11 @@ uv  (推奨)
 
 依存パッケージのインストール:
 ```bash
+# uv を使う場合（推奨）
 uv sync
+
+# pip を使う場合
+pip install -r requirements.txt
 ```
 
 ---
