@@ -5,16 +5,16 @@
 
 ---
 
-# Wine-Tower (QRDM) — Solving Dead-Neuron Problem in Spiking Neural Networks
+# Wine-Tower — Solving Dead-Neuron Problem in Spiking Neural Networks
 
-This repository implements the **Wine-Tower model (Quiescent-Recovery Diffusion Model, QRDM)**,
+This repository implements the **Wine-Tower model**,
 a biologically-inspired mechanism that revives dead (silent) neurons in WTA-LIF Spiking Neural Networks
 via voltage diffusion through recurrent connections.
 
 The agent is trained on a **Multiple T-Maze** lifelong-learning benchmark (5 goals, 5 junctions)
 using R-STDP with a 3-layer deep WTA-LIF architecture.
 
-Paper: *Solving the Dead-Neuron Problem in SNNs via a Biological Voltage-Diffusion Model (Wine-Tower / QRDM)* — Fumiaki INOUE, 2026.
+Paper: *Wine-Tower: Solving the Dead-Neuron Problem in SNNs via Biological Voltage Diffusion* — Fumiaki INOUE, 2026.
 
 ---
 

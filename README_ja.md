@@ -5,9 +5,9 @@
 
 ---
 
-# Wine-Tower (QRDM) — SNNのDead-Neuron問題の解決
+# Wine-Tower — SNNのDead-Neuron問題の解決
 
-本リポジトリは**Wine-Towerモデル (Quiescent-Recovery Diffusion Model, QRDM)** を実装します。
+本リポジトリは**Wine-Towerモデル**を実装します。
 WTA-LIF スパイキングニューラルネットワークにおいて死滅（沈黙）したニューロンを、
 再帰結合を通じた電位拡散で蘇生させる、生物学的に着想を得た手法です。
 
