@@ -16,6 +16,11 @@ using R-STDP with a 3-layer deep WTA-LIF architecture.
 
 Paper: *Wine-Tower: Solving the Dead-Neuron Problem in SNNs via Biological Voltage Diffusion* — Fumiaki INOUE, 2026.
 
+### Key Findings
+- **Structural Recovery**: Wine-Tower revives nearly all dead neurons by diffusing membrane potential through recurrent connections.
+- **WTA Attractor Wall**: Despite structural recovery, the accuracy improvement is blocked by attractor basins formed during early specialization — a phenomenon interpreted as a *computational critical period*.
+- **Structure–Function Gap**: Physical revival of neurons does not guarantee functional reintegration; the revived neurons are captured by the dominant WTA attractor and lose task-discriminative firing diversity.
+
 ---
 
 ## Requirements
@@ -108,7 +113,17 @@ uv run python main.py --max-phase 2 --save-model models/phase2.npz
 uv run python main.py --load-model models/phase2.npz --weight-plot articles/images/fig1.png
 ```
 
-### Figure 2 — Spike raster plot (Before / After Wine-Tower)
+### Figure 2 — Wine-Tower vs Control (3 seeds, mean ± std)
+```bash
+# Step 1: run ablation training (Phase1/2 checkpoint + Phase3 fork x2 x3seeds)
+.\run_boost_ablation.ps1
+
+# Step 2: generate figure
+uv run python compare_boost_ablation.py
+# output: articles/images/fig6.png
+```
+
+### Figure 3 — Spike raster plot (Before / After Wine-Tower)
 ```bash
 # Step 1: train Phase 1/2 checkpoint (shared)
 uv run python main.py --episodes 1500 --max-phase 2 --seed 42 --save-model models/phase2_raster.npz
@@ -128,14 +143,12 @@ uv run python generate_raster_comparison.py
 # output: articles/images/fig_raster.png
 ```
 
-### Figure 3 — Wine-Tower vs Control (3 seeds, mean ± std)
+### Figure 4 — WTA Attractor heatmap (goal-conditioned firing rate)
 ```bash
-# Step 1: run ablation training (Phase1/2 checkpoint + Phase3 fork x2 x3seeds)
-.\run_boost_ablation.ps1
-
-# Step 2: generate figures
-uv run python compare_boost_ablation.py
-# output: articles/images/fig6.png
+# Requires Phase 1/2 trained model
+uv run python generate_attractor_heatmap.py \
+    --model models/phase2_fig1_3000ep.npz \
+    --out articles/images/fig_attractor.png
 ```
 
 ### (Optional) Multi-seed comparison with existing results
@@ -157,13 +170,15 @@ src/snn_agent/
     stdp.py                    # R-STDP synaptic weight update
     environment.py             # Multiple T-Maze environment
     curriculum.py              # 3-phase goal curriculum
-generate_raster_comparison.py  # fig_raster: before/after spike raster
-compare_boost_ablation.py      # fig6: WT+boost vs control (3 seeds)
+generate_raster_comparison.py  # fig3: before/after spike raster
+generate_attractor_heatmap.py  # fig4: goal-conditioned firing rate heatmap
+compare_boost_ablation.py      # fig2: WT+boost vs control (3 seeds)
 compare_winetower.py           # multi-seed WT vs no-WT comparison
 run_boost_ablation.ps1         # PowerShell: run ablation experiment
 models/                        # pre-trained .npz model weights
 results/                       # saved training histories
-articles/                      # LaTeX paper source
+articles/                      # LaTeX paper source (Japanese)
+articles/eng/                  # LaTeX paper source (English)
 ```
 
 ---

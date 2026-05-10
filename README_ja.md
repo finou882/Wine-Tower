@@ -16,6 +16,11 @@ WTA-LIF スパイキングニューラルネットワークにおいて死滅（
 
 論文: *生物学的アプローチに基づいたLIFネットワークの電位拡散モデル (Wine-Tower) によるSpiking Neural NetworkのDead-Neuron問題の解決* — 井上文朗, 2026.
 
+### 主要発見
+- **構造回復**: Wine-Towerは再帰結合を介した膜電位拡散により死滅ニューロンのほぼ全数を蘇生させる。
+- **WTAアトラクターの壁**: 構造回復にもかかわらず、初期専門化で形成されたアトラクター盆が正答率回復を阻む「計算論的臨界期」として機能する。
+- **構造・機能乖離**: ニューロンの物理的蘇生は機能的再統合を保証しない。蘇生ニューロンはWTAアトラクターの支配的モードに取り込まれ、タスク弁別的な発火の多様性が失われる「情報の均一化」が生じる。
+
 ---
 
 ## 環境要件
@@ -108,7 +113,18 @@ uv run python main.py --max-phase 2 --save-model models/phase2.npz
 uv run python main.py --load-model models/phase2.npz --weight-plot articles/images/fig1.png
 ```
 
-### Figure 2 — スパイクラスタープロット（Wine-Tower適用前後）
+### Figure 2 — Wine-Tower vs コントロール（3シード、mean±std）
+```bash
+# Step 1: アブレーション学習を実行
+#   (Phase1/2チェックポイント + Phase3を2条件×3シードに分岐)
+.\run_boost_ablation.ps1
+
+# Step 2: グラフ生成
+uv run python compare_boost_ablation.py
+# 出力: articles/images/fig6.png
+```
+
+### Figure 3 — スパイクラスタープロット（Wine-Tower適用前後）
 ```bash
 # Step 1: Phase 1/2 チェックポイントを学習（共通）
 uv run python main.py --episodes 1500 --max-phase 2 --seed 42 --save-model models/phase2_raster.npz
@@ -128,15 +144,12 @@ uv run python generate_raster_comparison.py
 # 出力: articles/images/fig_raster.png
 ```
 
-### Figure 3 — Wine-Tower vs コントロール（3シード、mean±std）
+### Figure 4 — WTAアトラクターヒートマップ（ゴール条件別発火率）
 ```bash
-# Step 1: アブレーション学習を実行
-#   (Phase1/2チェックポイント + Phase3を2条件×3シードに分岐)
-.\run_boost_ablation.ps1
-
-# Step 2: グラフ生成
-uv run python compare_boost_ablation.py
-# 出力: articles/images/fig6.png
+# Phase 1/2 学習済みモデルが必要
+uv run python generate_attractor_heatmap.py \
+    --model models/phase2_fig1_3000ep.npz \
+    --out articles/images/fig_attractor.png
 ```
 
 ---
@@ -153,13 +166,15 @@ src/snn_agent/
     stdp.py                    # R-STDP シナプス重み更新
     environment.py             # 多段T字迷路環境
     curriculum.py              # 3フェーズ・ゴールカリキュラム
-generate_raster_comparison.py  # fig_raster: 適用前後のスパイクラスター
-compare_boost_ablation.py      # fig6: WT+boost vs コントロール（3シード）
+generate_raster_comparison.py  # fig3: 適用前後のスパイクラスター
+generate_attractor_heatmap.py  # fig4: ゴール条件別発火率ヒートマップ
+compare_boost_ablation.py      # fig2: WT+boost vs コントロール（3シード）
 compare_winetower.py           # マルチシードWT vs No-WT比較
 run_boost_ablation.ps1         # PowerShell: アブレーション実験実行
 models/                        # 学習済み .npz モデル重み
 results/                       # 保存済み学習履歴
-articles/                      # LaTeX 論文ソース
+articles/                      # LaTeX 論文ソース（日本語）
+articles/eng/                  # LaTeX 論文ソース（英語）
 ```
 
 ---
