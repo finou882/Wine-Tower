@@ -229,116 +229,128 @@ def plot_results(history, save_path):
 
 def plot_weight_heatmaps(agent, save_path: str) -> None:
     """
-    Plot heatmaps of W_in, W_out, and (optionally) W_rec.
-
-    W_in  : (obs_dim, n_hidden)  – rows = input features, cols = hidden neurons
-            sorted by L2-norm of each hidden neuron's weight vector
-    W_out : (n_hidden, act_dim)  – rows = hidden neurons, cols = actions
-    W_rec : (n_hidden, n_hidden) – recurrent connections (if present)
+    Plot heatmaps of feedforward weights for a 3-layer SNN:
+    W_in (obs→H1), W_12 (H1→H2), W_23 (H2→H3), W_out (H3→act).
+    Dead neurons are highlighted with red lines.
     """
     import matplotlib.pyplot as plt
     import matplotlib.gridspec as gridspec
-    from datetime import datetime
+    from matplotlib.lines import Line2D
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    plt.rcParams.update({
+        "font.size": 32,
+        "axes.titlesize": 36,
+        "axes.labelsize": 34,
+        "xtick.labelsize": 30,
+        "ytick.labelsize": 30,
+        "legend.fontsize": 30,
+        "figure.titlesize": 38,
+    })
 
     # Input feature labels
     from src.snn_agent.environment import N_JUNCTIONS, N_GOALS
     input_labels = (
-        [f"J{i}" for i in range(N_JUNCTIONS)]        # junction one-hot
-        + [f"G{i}" for i in range(N_GOALS)]           # goal cue one-hot
-        + ["CUE"]                                       # hint flag
+        [f"J{i}" for i in range(N_JUNCTIONS)]
+        + [f"G{i}" for i in range(N_GOALS)]
+        + ["CUE"]
     )
     action_labels = ["Left", "Right", "Fwd"]
 
-    W_in  = agent.W_in.W.copy()    # (obs_dim, n_hidden)
-    W_out = agent.W_out.W.copy()   # (n_hidden, act_dim)
-    has_rec = agent.recurrent
-    W_rec = agent.W_rec.W.copy() if has_rec else None
+    W_in  = agent.W_in.W.copy()   # (obs_dim, n_h)
+    W_12  = agent.W_12.W.copy()   # (n_h, n_h)
+    W_23  = agent.W_23.W.copy()   # (n_h, n_h)
+    W_out = agent.W_out.W.copy()  # (n_h, act_dim)
 
-    # Sort hidden neurons by L2 norm of their W_in column (descending)
-    norms = np.linalg.norm(W_in, axis=0)
-    order = np.argsort(-norms)
-    W_in_sorted  = W_in[:, order]
-    W_out_sorted = W_out[order, :]
-    dead_sorted  = agent.hidden.dead_mask[order]
+    dead1 = agent.hidden1.dead_mask
+    dead2 = agent.hidden2.dead_mask
+    dead3 = agent.hidden3.dead_mask
 
-    n_panels = 3 if has_rec else 2
-    fig = plt.figure(figsize=(5 * n_panels, max(8, W_in.shape[1] // 6)))
-    gs  = gridspec.GridSpec(1, n_panels, wspace=0.45)
+    # Sort H1 neurons by L2 norm of W_in columns (descending)
+    ord1 = np.argsort(-np.linalg.norm(W_in, axis=0))
+    # Sort H2/H3 by L2 norm of incoming weights
+    ord2 = np.argsort(-np.linalg.norm(W_12, axis=0))
+    ord3 = np.argsort(-np.linalg.norm(W_23, axis=0))
 
-    # ── Panel 1: W_in ───────────────────────────────────────────────
+    W_in_s  = W_in[:, ord1]
+    W_12_s  = W_12[np.ix_(ord1, ord2)]
+    W_23_s  = W_23[np.ix_(ord2, ord3)]
+    W_out_s = W_out[ord3, :]
+
+    n_h = W_in.shape[1]
+    fig = plt.figure(figsize=(10 * 4, max(18, n_h // 3)))
+    gs  = gridspec.GridSpec(1, 4, wspace=0.6)
+
+    # Panel 1: W_in  (obs_dim, n_h) → display as (n_h, obs_dim)
     ax1 = fig.add_subplot(gs[0])
-    vmax = np.abs(W_in_sorted).max()
-    im1 = ax1.imshow(
-        W_in_sorted.T,          # (n_hidden, obs_dim) → rows=hidden, cols=input
-        aspect="auto",
-        cmap="RdBu_r",
-        vmin=-vmax, vmax=vmax,
-        interpolation="nearest",
-    )
-    ax1.set_title(f"W_in A: weights_{timestamp}", fontsize=9)
+    vmax = np.abs(W_in_s).max() or 1.0
+    im1 = ax1.imshow(W_in_s.T, aspect="auto", cmap="RdBu_r",
+                     vmin=-vmax, vmax=vmax, interpolation="nearest")
+    ax1.set_title("W_in  (obs → H1)")
     ax1.set_xlabel("sensor")
-    ax1.set_ylabel("hidden neuron (norm order)")
+    ax1.set_ylabel("H1 neuron (norm order)")
     ax1.set_xticks(range(len(input_labels)))
-    ax1.set_xticklabels(input_labels, rotation=60, ha="right", fontsize=7)
+    ax1.set_xticklabels(input_labels, rotation=60, ha="right")
+    ax1.tick_params(axis='y')
     fig.colorbar(im1, ax=ax1, shrink=0.6, label="weight")
+    for y in np.where(dead1[ord1])[0]:
+        ax1.axhline(y, color="red", linewidth=0.5, alpha=0.5)
 
-    # Highlight dead neurons with a red tick on y-axis
-    dead_yticks = np.where(dead_sorted)[0]
-    for y in dead_yticks:
-        ax1.axhline(y, color="red", linewidth=0.4, alpha=0.5)
-
-    # ── Panel 2: W_out ──────────────────────────────────────────────
+    # Panel 2: W_12  (n_h, n_h) → display as (H2, H1)
     ax2 = fig.add_subplot(gs[1])
-    vmax2 = np.abs(W_out_sorted).max()
-    im2 = ax2.imshow(
-        W_out_sorted,            # (n_hidden, act_dim)
-        aspect="auto",
-        cmap="RdBu_r",
-        vmin=-vmax2, vmax=vmax2,
-        interpolation="nearest",
-    )
-    ax2.set_title(f"W_out: weights_{timestamp}", fontsize=9)
-    ax2.set_xlabel("action")
-    ax2.set_ylabel("hidden neuron (norm order)")
-    ax2.set_xticks(range(len(action_labels)))
-    ax2.set_xticklabels(action_labels, fontsize=8)
+    vmax = np.abs(W_12_s).max() or 1.0
+    im2 = ax2.imshow(W_12_s.T, aspect="auto", cmap="RdBu_r",
+                     vmin=-vmax, vmax=vmax, interpolation="nearest")
+    ax2.set_title("W_12  (H1 → H2)")
+    ax2.set_xlabel("H1 neuron")
+    ax2.set_ylabel("H2 neuron (norm order)")
+    ax2.tick_params()
     fig.colorbar(im2, ax=ax2, shrink=0.6, label="weight")
+    for y in np.where(dead2[ord2])[0]:
+        ax2.axhline(y, color="red", linewidth=0.5, alpha=0.5)
+    for x in np.where(dead1[ord1])[0]:
+        ax2.axvline(x, color="orange", linewidth=0.5, alpha=0.4)
 
-    for y in dead_yticks:
-        ax2.axhline(y, color="red", linewidth=0.4, alpha=0.5)
+    # Panel 3: W_23  (n_h, n_h) → display as (H3, H2)
+    ax3 = fig.add_subplot(gs[2])
+    vmax = np.abs(W_23_s).max() or 1.0
+    im3 = ax3.imshow(W_23_s.T, aspect="auto", cmap="RdBu_r",
+                     vmin=-vmax, vmax=vmax, interpolation="nearest")
+    ax3.set_title("W_23  (H2 → H3)")
+    ax3.set_xlabel("H2 neuron")
+    ax3.set_ylabel("H3 neuron (norm order)")
+    ax3.tick_params()
+    fig.colorbar(im3, ax=ax3, shrink=0.6, label="weight")
+    for y in np.where(dead3[ord3])[0]:
+        ax3.axhline(y, color="red", linewidth=0.5, alpha=0.5)
+    for x in np.where(dead2[ord2])[0]:
+        ax3.axvline(x, color="orange", linewidth=0.5, alpha=0.4)
 
-    # ── Panel 3: W_rec (optional) ────────────────────────────────────
-    if has_rec:
-        ax3 = fig.add_subplot(gs[2])
-        W_rec_sorted = W_rec[np.ix_(order, order)]
-        vmax3 = np.abs(W_rec_sorted).max()
-        im3 = ax3.imshow(
-            W_rec_sorted,
-            aspect="auto",
-            cmap="RdBu_r",
-            vmin=-vmax3, vmax=vmax3,
-            interpolation="nearest",
-        )
-        ax3.set_title(f"W_rec: weights_{timestamp}", fontsize=9)
-        ax3.set_xlabel("hidden (pre, norm order)")
-        ax3.set_ylabel("hidden (post, norm order)")
-        fig.colorbar(im3, ax=ax3, shrink=0.6, label="weight")
+    # Panel 4: W_out  (n_h, act_dim)
+    ax4 = fig.add_subplot(gs[3])
+    vmax = np.abs(W_out_s).max() or 1.0
+    im4 = ax4.imshow(W_out_s, aspect="auto", cmap="RdBu_r",
+                     vmin=-vmax, vmax=vmax, interpolation="nearest")
+    ax4.set_title("W_out  (H3 → action)")
+    ax4.set_xlabel("action")
+    ax4.set_ylabel("H3 neuron (norm order)")
+    ax4.set_xticks(range(len(action_labels)))
+    ax4.set_xticklabels(action_labels)
+    ax4.tick_params(axis='y')
+    fig.colorbar(im4, ax=ax4, shrink=0.6, label="weight")
+    for y in np.where(dead3[ord3])[0]:
+        ax4.axhline(y, color="red", linewidth=0.5, alpha=0.5)
 
-        for y in dead_yticks:
-            ax3.axhline(y, color="red", linewidth=0.4, alpha=0.4)
-            ax3.axvline(y, color="red", linewidth=0.4, alpha=0.4)
+    n_dead = int(dead1.sum() + dead2.sum() + dead3.sum())
+    n_total = len(dead1) + len(dead2) + len(dead3)
+    legend_el = [
+        Line2D([0], [0], color="red",    linewidth=1.5, label=f"dead neuron (post-layer, {n_dead}/{n_total})"),
+        Line2D([0], [0], color="orange", linewidth=1.5, label="dead neuron (pre-layer)"),
+    ]
+    fig.legend(handles=legend_el, loc="lower center", ncol=2,
+               bbox_to_anchor=(0.5, -0.04))
 
-    # Legend for dead neuron marker
-    from matplotlib.lines import Line2D
-    legend_el = [Line2D([0], [0], color="red", linewidth=1.5,
-                         label=f"dead neuron ({dead_sorted.sum()}/{len(dead_sorted)})")]
-    fig.legend(handles=legend_el, loc="lower center", ncol=1,
-               bbox_to_anchor=(0.5, -0.02), fontsize=8)
-
-    plt.suptitle("SNN Weight Heatmaps  ·  LIF+STDP+WTA", y=1.01)
-    plt.savefig(save_path, dpi=140, bbox_inches="tight")
+    plt.suptitle("SNN Weight Heatmaps  ·  LIF+STDP+WTA  (Phase 1/2)", y=1.01)
+    plt.savefig(save_path, dpi=200, bbox_inches="tight")
     print(f"Weight heatmap saved to: {save_path}")
 
 
